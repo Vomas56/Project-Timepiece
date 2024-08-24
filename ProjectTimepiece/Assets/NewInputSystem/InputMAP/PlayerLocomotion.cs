@@ -5,11 +5,11 @@ using UnityEngine;
 public class PlayerLocomotion : MonoBehaviour
 {
     InputManager inputManager;
-    // Variables needed for moving.
+    // These variables allow the player to move.
     Vector3 moveDirection;
     Transform cameraObject;
     Rigidbody botRigid;
-    // Constants for ground movement.
+    // These constants dictate ground movement.
     public float movementSpeed = 7;
     public float rotationSpeed = 15;
     public float dashTimer = 0;
@@ -38,15 +38,16 @@ public class PlayerLocomotion : MonoBehaviour
         cameraObject = Camera.main.transform;
     }
 
-    public void HandleAllMovement()
+    public void HandleAllMovement() // Registers movement inputs frame by frame.
     {
         HandleCoolDown();
-        // As dashing leaves you in midair we handle that first.
+        // For dashing to leave the player in midair that is handled first.
         if (isDashing)
         {
             HandleDash();
             return;
         }
+        // Falling is handled before any movement.
         HandleFallingAndLanding();
         if (isInteracting)
         {
@@ -89,7 +90,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     public void HandleFallingAndLanding()
     {
-        // A raycast is used to determine if 
+        // A raycast is used to determine if the player is in contact with a surface.
         RaycastHit hit;
         Vector3 rayCastOrigin = transform.position;
         rayCastOrigin.y += rayCastHeightOffset;
@@ -111,11 +112,13 @@ public class PlayerLocomotion : MonoBehaviour
         if (!isGrounded)
         {
             AirTime += Time.deltaTime;
+            // Continues to apply downward velocity the longer the player lasts in the air.
             botRigid.AddForce(transform.forward * leapingVelocity);
-            botRigid.AddForce(-Vector3.up * fallingVelocity * AirTime);
+            botRigid.AddForce(-Vector3.up * fallingVelocity * AirTime); // This could see a maximum in the future.
         }
         if (Physics.SphereCast(rayCastOrigin, 0.5f, -Vector3.up, out hit, groundLayer))
         {
+            // Considers the player landed if true.
             AirTime = 0;
             jumpTimer = 0;
             isGrounded = true;
@@ -129,7 +132,7 @@ public class PlayerLocomotion : MonoBehaviour
 
     public void HandleJump()
     {
-        if (isGrounded)
+        if (isGrounded) // Only allows the player to jump if they are grounded.
         {
             float jumpVelocity = Mathf.Sqrt(-2 * gravityIntensity * jumpHeight);
             Vector3 playerVelocity = moveDirection;

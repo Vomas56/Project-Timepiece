@@ -22,6 +22,7 @@ public class BotLocomotion : MonoBehaviour
 
     public void HandleAllMovement()
     {
+        // All movement inputs are handled from here.
         HandleMovement();
         HandleRotation();
     }
@@ -53,7 +54,6 @@ public class BotLocomotion : MonoBehaviour
         // Uses quaternions to make rotation more gradual and less snappy.
         Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
         Quaternion botRotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-
         transform.rotation = botRotation;
     }
 }
