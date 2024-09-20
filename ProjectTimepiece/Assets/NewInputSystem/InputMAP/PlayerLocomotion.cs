@@ -1,35 +1,36 @@
- using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+
 
 public class PlayerLocomotion : MonoBehaviour
 {
     InputManager inputManager;
+    public float m_velocity; // The magnitude of the player's velocity.
     // These variables allow the player to move.
-    Vector3 moveDirection;
+    Vector3 moveDirection; // What direction is the player facing?
     Transform cameraObject;
     Rigidbody botRigid;
     // These constants dictate ground movement.
-    public float movementSpeed = 7;
-    public float rotationSpeed = 15;
-    public float dashTimer = 0;
-    public float dashCoolDown = 0;
-    public float dashPower = 3;
+    private float movementSpeed = 7;
+    private float rotationSpeed = 15;
+    private float dashTimer = 0;
+    private float dashCoolDown = 0;
+    private float dashPower = 3;
     // Constants for jumping.
-    public float AirTime;
-    public float jumpTimer = 0.5f;
-    public float rayCastHeightOffset = 0.5f;
-    public float leapingVelocity = 3;
-    public float fallingVelocity = 33;
-    public float jumpHeight = 3;
-    public float gravityIntensity = -15;
+    public float AirTime = 0f;
+    private float jumpTimer = 0f;
+    private float rayCastHeightOffset = 0.5f;
+    private float leapingVelocity = 3;
+    private float fallSpeed = 33;
+    private float jumpHeight = 3;
+    private float gravityIntensity = -15;
     public LayerMask groundLayer;
     // Booleans that denote the state the player is in.
-    public bool isInteracting;
-    public bool isDashing;
-    public bool isJumping;
-    public bool isGrounded = true;
-
+    private bool isInteracting = false;
+    private bool isDashing = false;
+    private bool isJumping = false;
+    public bool isGrounded = false;
 
     private void Awake()
     {
@@ -38,68 +39,70 @@ public class PlayerLocomotion : MonoBehaviour
         cameraObject = Camera.main.transform;
     }
 
-    public void HandleAllMovement() // Registers movement inputs frame by frame.
-    {
-        HandleCoolDown();
-        // For dashing to leave the player in midair that is handled first.
-        if (isDashing)
-        {
-            HandleDash();
-            return;
-        }
-        // Falling is handled before any movement.
+    public void HandleAllMovement()
+    {  // This function calls movement inputs frame by frame.
         HandleFallingAndLanding();
-        if (isInteracting)
-        {
-            return;
-        }
         HandleMovement();
         HandleRotation();
+        HandleCoolDown();
     }
 
     private void HandleMovement()
     {
-        // Creates a vector that moves the player based on camera orientation.
-        moveDirection = cameraObject.forward * inputManager.verticalInput;
-        moveDirection += cameraObject.right * inputManager.horizontalInput;
-        moveDirection.Normalize();
-        moveDirection.y = 0;
-        moveDirection = moveDirection * movementSpeed;
-        // Gives Rigid body velocity based on previous calculations.
-        Vector3 movementVelocity = moveDirection;
-        botRigid.velocity = movementVelocity;
+        if (botRigid.velocity.y != 0)
+        {
+            return;
+        }
+        else if (isDashing)
+        {   // Dashing causes the player to move forward at a gradually decreasing speed.
+            moveDirection = transform.forward;
+            moveDirection *= movementSpeed * dashPower;
+        }
+        else
+        {   // A vector is created based on keyboard inputs and the camera orientation.
+            moveDirection = cameraObject.forward * inputManager.getVertical();
+            moveDirection += cameraObject.right * inputManager.getHorizontal();
+            moveDirection.Normalize();
+            moveDirection.y = 0;
+            moveDirection = moveDirection * movementSpeed;
+        }
+        // The velocity is translated to the rigid body, and its magnitude gets recorded.
+        botRigid.velocity = moveDirection;
+        m_velocity = moveDirection.x * moveDirection.x * +moveDirection.z * moveDirection.z;
     }
 
     private void HandleRotation()
     {
+        if (botRigid.velocity.y != 0 || isDashing) return; // The player will not rotate when dashing.
         Vector3 targetDirection = Vector3.zero;
         // Creates a vector that rotates a character to match their movement direction.
-        targetDirection = cameraObject.forward * inputManager.verticalInput;
-        targetDirection += cameraObject.right * inputManager.horizontalInput;
+        targetDirection = cameraObject.forward * inputManager.getVertical();
+        targetDirection += cameraObject.right * inputManager.getHorizontal();
         targetDirection.Normalize();
         targetDirection.y = 0;
-        // Keeps rotation if the character isn't present.
+        // If the character isn't present, this if statement keeps their looking direction static.
         if (targetDirection == Vector3.zero)
+        {
             targetDirection = transform.forward;
-        // Uses quaternions to make rotation more gradual and less snappy.
+        }
+        // Quaternions are used to make the rotation more gradual and less snappy.
         Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
         Quaternion playerRotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-
+        // Finally, the transform is given the resulting vector.
         transform.rotation = playerRotation;
     }
 
     public void HandleFallingAndLanding()
     {
-        // A raycast is used to determine if the player is in contact with a surface.
+        if (isDashing) return; // The player's height does not change while dashing.
+        // Creates a raycast to determine if the player is in contact with a surface.
         RaycastHit hit;
         Vector3 rayCastOrigin = transform.position;
         rayCastOrigin.y += rayCastHeightOffset;
-
         if (isJumping)
-        {
-            if (inputManager.jump_held && jumpTimer < 0.25)
+        {   // The power of the jump is increased by holding the button.
+            if (inputManager.getJump() && jumpTimer < 0.25)
             {
-                // Slightly increase the force of the jump.
                 jumpTimer += Time.deltaTime;
                 botRigid.AddForce(transform.forward * leapingVelocity / 100);
             }
@@ -107,22 +110,22 @@ public class PlayerLocomotion : MonoBehaviour
             {
                 isJumping = false;
             }
-            return;
         }
         if (!isGrounded)
-        {
+        {   // These functions continue to apply downward velocity on the player the longer they stay in the air.
+            /* if (!isInteracting) 
+            {
+                // Maybe insert a falling animation if the character isn't already interacting?
+            } */
             AirTime += Time.deltaTime;
-            // Continues to apply downward velocity the longer the player lasts in the air.
             botRigid.AddForce(transform.forward * leapingVelocity);
-            botRigid.AddForce(-Vector3.up * fallingVelocity * AirTime); // This could see a maximum in the future.
+            botRigid.AddForce(-Vector3.up * fallSpeed * AirTime); // This could see a maximum in the future.
         }
-        if (Physics.SphereCast(rayCastOrigin, 0.5f, -Vector3.up, out hit, groundLayer))
-        {
-            // Considers the player landed if true.
+        if (Physics.SphereCast(rayCastOrigin, 0.2f, -Vector3.up, out hit, groundLayer))
+        {   // The raycast should hit once the player lands, grounding them.
             AirTime = 0;
             jumpTimer = 0;
             isGrounded = true;
-            isInteracting = false;
         }
         else
         {
@@ -130,42 +133,55 @@ public class PlayerLocomotion : MonoBehaviour
         }
     }
 
-    public void HandleJump()
-    {
-        if (isGrounded) // Only allows the player to jump if they are grounded.
+    public bool HandleJump()
+    {   // This function make the player jump up if they're on the ground and not doing anything.
+        if (isGrounded && !isInteracting && dashTimer == 0)
         {
             float jumpVelocity = Mathf.Sqrt(-2 * gravityIntensity * jumpHeight);
             Vector3 playerVelocity = moveDirection;
             playerVelocity.y = jumpVelocity;
             botRigid.velocity = playerVelocity;
+            isInteracting = true;
             isJumping = true;
             isGrounded = false;
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
 
-    public void HandleDash()
+    public bool HandleDash()
     {
-        // Creates a vector that moves the player forward at a straight speed. Gradually slows down.
-        Vector3 dashDirection = transform.forward;
-        dashDirection *= movementSpeed * dashPower;
-        botRigid.velocity = dashDirection;
-        // Update timers, and stop dashing when the dashTimer runs out.
-        dashTimer -= Time.deltaTime;
-        dashPower = Mathf.Max(dashPower - 2 * Time.deltaTime, 0.5f);
-        if (dashTimer <= 0)
-        {
-            dashTimer = 0;
-            dashPower = 3;
-            dashCoolDown = 3;
-            isDashing = false;
+        if (dashCoolDown == 0)
+        {   // Starts the character's dashing ability if it's not on cooldown.
+            isInteracting = true;
+            isDashing = true;
+            dashTimer = 1;
+            return true;
         }
+        return false;
     }
 
     public void HandleCoolDown()
     {
-        if (dashCoolDown > 0)
-        {
+        if (isDashing)
+        {   // Gradually reduces both the amount of time spent dashing and the dashing speed.
+            dashTimer -= Time.deltaTime;
+            dashPower = Mathf.Max(dashPower - 2 * Time.deltaTime, 0.5f);
+            if (dashTimer <= 0)
+            {   // Starts a cooldown between dashes.
+                dashTimer = 0;
+                dashPower = 3;
+                dashCoolDown = 3;
+                isDashing = false;
+            }
+        }
+        else if (dashCoolDown > 0)
+        {   // Updates the dash cooldown to a minumum of 0.
             dashCoolDown = Mathf.Max(dashCoolDown - Time.deltaTime, 0);
         }
+        isInteracting = !(!isDashing && !isJumping);
     }
 }

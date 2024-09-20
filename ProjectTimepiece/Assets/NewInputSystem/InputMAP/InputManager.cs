@@ -9,19 +9,41 @@ public class InputManager : MonoBehaviour
     public GameObject botSphere;
     PlayerLocomotion playerLocomotion;
 
-    public Vector2 movementInput;
-    public float verticalInput;
-    public float horizontalInput;
+    [SerializeField] private CinemachineFreeLook camCam;
+
+    private Vector2 movementInput;
+    private float verticalInput;
+    private float horizontalInput;
     // Booleans that determine jump input.
-    public bool jump_input;
-    public bool jump_held;
-    
-    public bool dash_input;
-    public bool swap_input;
+    private bool jump_input;
+    private bool jump_held;
+
+    private bool dash_input;
+    private bool swap_input;
 
     private void Awake()
     {
         playerLocomotion = GetComponent<PlayerLocomotion>();
+    }
+
+    public CinemachineFreeLook getCamCam()
+    {
+        return camCam;
+    }
+
+    public bool getJump()
+    {
+        return jump_held;
+    }
+
+    public float getVertical()
+    {
+        return verticalInput;
+    }
+
+    public float getHorizontal()
+    {
+        return horizontalInput;
     }
 
     private void OnEnable()
@@ -29,7 +51,7 @@ public class InputManager : MonoBehaviour
         if (playerControls == null)
         {
             playerControls = new PlayerControls();
-
+            // These activate the inputs :T
             playerControls.PlayerMovement.Move.performed += i => movementInput = i.ReadValue<Vector2>();
             playerControls.PlayerMovement.Jump.performed += i => jump_input = true;
             playerControls.PlayerMovement.Dash.performed += i => dash_input = true;
@@ -51,7 +73,7 @@ public class InputManager : MonoBehaviour
         HandleDashInput();
         HandleSwapInput();
     }
-    
+
     private void HandleMovementInput()
     {
         verticalInput = movementInput.y;
@@ -60,20 +82,17 @@ public class InputManager : MonoBehaviour
 
     private void HandleJumpInput()
     {
-        if (!jump_input)
-        {
-            jump_held = false;
-        }
-
         if (jump_input)
         {
             jump_input = false;
-            if (!playerLocomotion.isInteracting && playerLocomotion.dashTimer == 0)
+            if (playerLocomotion.HandleJump())
             {
                 jump_held = true;
-                playerLocomotion.isInteracting = true;
-                playerLocomotion.HandleJump();
             }
+        }
+        else
+        {
+            jump_held = false;
         }
     }
     private void HandleDashInput()
@@ -81,11 +100,7 @@ public class InputManager : MonoBehaviour
         if (dash_input)
         {
             dash_input = false;
-            if (playerLocomotion.dashCoolDown == 0)
-            {
-                playerLocomotion.dashTimer = 1;
-                playerLocomotion.isDashing = true;
-            }
+            playerLocomotion.HandleDash();
         }
     }
     private void HandleSwapInput()
@@ -95,9 +110,9 @@ public class InputManager : MonoBehaviour
             swap_input = false;
             playerControls.Disable();
             var privateBot = Instantiate(botSphere, transform.position + Vector3.up * 2f, Quaternion.identity);
-            /* If only there was a way to get the camera to follow the bot...
-            GameObject.FindWithTag("CameraTwo").GetComponent<CinemachineFreeLook>().Follow = privateBot;
-            */
+            // Changes camera to look back at the bot.
+            camCam.Follow = privateBot.transform;
+            camCam.LookAt = privateBot.transform;
         }
     }
 }

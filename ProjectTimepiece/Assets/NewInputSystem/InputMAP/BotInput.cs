@@ -9,17 +9,21 @@ public class BotInput : MonoBehaviour
     PlayerControls botControls;
     BotLocomotion botLocomotion;
     // The bot only has 4 needed inputs.
-    public Vector2 movementInput;
+
+    [SerializeField] private CinemachineFreeLook camCam;
+
+    private Vector2 movementInput;
     public float verticalInput;
     public float horizontalInput;
-    public bool swap_input;
+    private bool swap_input;
 
     private void Awake()
     {
         botLocomotion = GetComponent<BotLocomotion>();
         playerControls = GameObject.FindWithTag("Player").GetComponent<InputManager>().playerControls;
+        camCam = GameObject.FindWithTag("Player").GetComponent<InputManager>().getCamCam();
     }
-    
+
     private void OnEnable()
     {
 
@@ -57,11 +61,8 @@ public class BotInput : MonoBehaviour
         {
             botControls.Disable();
             playerControls.Enable();
-            // If we were to change the camera to follow the player again, it would be here.
-            /*
-            Camera.main.LookAt(GameObject.FindWithTag("Player"));
-            Camera.main.Follow(GameObject.FindWithTag("Player"));
-            */
+            camCam.Follow = GameObject.FindWithTag("Player").transform;
+            camCam.LookAt = GameObject.FindWithTag("Player").transform;
             Destroy(gameObject);
             return;
         }

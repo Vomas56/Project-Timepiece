@@ -7,9 +7,8 @@ public class PlayerManager : MonoBehaviour
     InputManager inputManger;
     PlayerLocomotion playerLocomotion;
 
-    private void Awake()
+    private void Awake() // This function calls (and runs) InputManager and PlayerLocomotion.
     {
-        // Call everything so we can run it from here.
         inputManger = GetComponent<InputManager>();
         playerLocomotion = GetComponent<PlayerLocomotion>();
     }
